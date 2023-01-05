@@ -1,0 +1,1 @@
+export { SolidPersistence } from './SolidPersistence';

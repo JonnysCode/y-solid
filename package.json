@@ -2,7 +2,11 @@
   "name": "y-solid",
   "version": "0.1.1",
   "description": "Solid provider for Yjs",
-  "main": "index.js",
+  "main": "dist/bundle.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build:dev": "webpack --mode=development --watch --progress",
     "build:prod": "webpack --mode=production",

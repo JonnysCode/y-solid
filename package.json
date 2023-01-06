@@ -3,7 +3,7 @@
   "version": "0.1.2",
   "description": "Solid provider for Yjs",
   "main": "dist/bundle.js",
-  "types": "dist/index.d.ts",
+  "types": "dist/SolidPersistence.d.ts",
   "files": [
     "dist"
   ],

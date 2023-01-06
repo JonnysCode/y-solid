@@ -1,1 +1,0 @@
-export { SolidPersistence } from './SolidPersistence';

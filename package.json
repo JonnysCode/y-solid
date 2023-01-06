@@ -1,6 +1,6 @@
 {
   "name": "y-solid",
-  "version": "0.1.0-beta",
+  "version": "0.1.0",
   "description": "Solid provider for Yjs",
   "main": "index.js",
   "scripts": {

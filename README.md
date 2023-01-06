@@ -1,2 +1,5 @@
 # y-solid
-Solid provider for Yjs
+
+> Solid provider for Yjs
+
+Work in progress...

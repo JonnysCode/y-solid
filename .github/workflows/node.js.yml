@@ -8,15 +8,31 @@ on:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           node-version: '14.x'
+          registry-url: 'https://registry.npmjs.org'
+
       - run: npm install
-      - name: Build and publish in development mode
-        if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[skip ci]')
-        run: npm run build:dev && npm publish --tag dev
+
+      - name: Increase the minor version
+        if: contains(github.event.head_commit.message, 'minor')
+        run: npm version minor
+      - name: Increase the major version
+        if: contains(github.event.head_commit.message, 'major')
+        run: npm version major
+      - name: Increase the patch version
+        if: ${{ !contains(github.event.head_commit.message, 'minor') && !contains(github.event.head_commit.message, 'major') }}
+        run: npm version patch
+
+      - name: Build only in development mode
+        if: contains(github.event.head_commit.message, '[skip ci]')
+        run: npm run build:dev
       - name: Build and publish in production mode
-        if: github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
+        if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
         run: npm run build:prod && npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

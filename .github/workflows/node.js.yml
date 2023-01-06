@@ -1,0 +1,22 @@
+name: Publish to npm
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14.x'
+      - run: npm install
+      - name: Build and publish in development mode
+        if: github.ref == 'refs/heads/main'
+        run: npm run build:dev && npm publish --tag dev
+      - name: Build and publish in production mode
+        if: github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
+        run: npm run build:prod && npm publish

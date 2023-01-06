@@ -47,11 +47,11 @@ const readAccess: AccessModes = {
 export const login = async (
   oidcIssuer = 'https://inrupt.net',
   redirectUrl = window.location.href,
-  clientName = 'SyncedStore'
+  clientName = 'SyncedStore',
 ): Promise<Session> => {
   await handleIncomingRedirect({ restorePreviousSession: true });
 
-  let session = getDefaultSession();
+  const session = getDefaultSession();
 
   if (!session.info.isLoggedIn) {
     await session.login({
@@ -65,7 +65,7 @@ export const login = async (
 };
 
 const logAccessInfoAll = (agentAccess: AgentAccess | null, dataset: any) => {
-  let resource = dataset.internal_resourceInfo.sourceIri;
+  const resource = dataset.internal_resourceInfo.sourceIri;
   console.log(`For resource::: ${resource}`);
 
   if (agentAccess) {
@@ -87,9 +87,9 @@ const logAccessInfo = (agent: any, agentAccess: any, resource: any) => {
 };
 
 export const getAccessInfoWAC = async (
-  datasetWithAcl: any
+  datasetWithAcl: any,
 ): Promise<AgentAccess | null> => {
-  let accessByAgent = getAgentAccessAll(datasetWithAcl);
+  const accessByAgent = getAgentAccessAll(datasetWithAcl);
 
   logAccessInfoAll(accessByAgent, datasetWithAcl);
 
@@ -97,12 +97,12 @@ export const getAccessInfoWAC = async (
 };
 
 export const getPublicAccessInfo = async (
-  datasetUrl = `${POD_URL}/yjs/docs`
+  datasetUrl = `${POD_URL}/yjs/docs`,
 ) => {
   universalAccess
     .getPublicAccess(
       datasetUrl, // Resource
-      { fetch: fetch } // fetch function from authenticated session
+      { fetch: fetch }, // fetch function from authenticated session
     )
     .then((returnedAccess) => {
       if (returnedAccess === null) {
@@ -110,7 +110,7 @@ export const getPublicAccessInfo = async (
       } else {
         console.log(
           'Returned Public Access:: ',
-          JSON.stringify(returnedAccess)
+          JSON.stringify(returnedAccess),
         );
       }
     });
@@ -118,12 +118,12 @@ export const getPublicAccessInfo = async (
 
 export const getAgentAccessInfo = async (
   resourceUrl: string,
-  webid: string
+  webid: string,
 ): Promise<AccessModes | null> => {
-  let agentAccess = universalAccess.getAgentAccess(
+  const agentAccess = universalAccess.getAgentAccess(
     resourceUrl, // resource
     webid, // agent
-    { fetch: fetch } // fetch function from authenticated session
+    { fetch: fetch }, // fetch function from authenticated session
   );
 
   logAccessInfo(webid, agentAccess, resourceUrl);
@@ -133,12 +133,12 @@ export const getAgentAccessInfo = async (
 
 export const setPublicAccess = async (
   resourceUrl: string,
-  access: AccessModes
+  access: AccessModes,
 ): Promise<AccessModes | null> => {
-  let publicAccess = await universalAccess.setPublicAccess(
+  const publicAccess = await universalAccess.setPublicAccess(
     resourceUrl, // Resource
     access, // Access
-    { fetch: fetch } // fetch function from authenticated session
+    { fetch: fetch }, // fetch function from authenticated session
   );
 
   if (publicAccess === null) {
@@ -153,14 +153,14 @@ export const setPublicAccess = async (
 export const setAgentAccess = async (
   resourceUrl: string,
   webId: string,
-  access: AccessModes
+  access: AccessModes,
 ) => {
   universalAccess
     .setAgentAccess(
       resourceUrl, // Resource
       webId, // Agent
       access, // Access
-      { fetch: fetch } // fetch function from authenticated session
+      { fetch: fetch }, // fetch function from authenticated session
     )
     .then((returnedAccess) => {
       if (returnedAccess === null) {
@@ -181,10 +181,10 @@ export const setAgentAccess = async (
  */
 const openSolidWebSocket = (
   resourceUrl: string,
-  socketUrl: string = 'wss://inrupt.net/'
+  socketUrl = 'wss://inrupt.net/',
 ): WebSocket | null => {
   try {
-    let websocket = new WebSocket(socketUrl, ['solid-0.1']);
+    const websocket = new WebSocket(socketUrl, ['solid-0.1']);
 
     websocket.onopen = function () {
       this.send('sub ' + resourceUrl);
@@ -198,7 +198,7 @@ const openSolidWebSocket = (
   return null;
 };
 
-const syncInterval = (fn: () => {}, interval: number = 5000) => {
+const syncInterval = (fn: () => void, interval = 5000) => {
   (async function i() {
     await fn();
     setTimeout(i, interval);
@@ -230,7 +230,7 @@ export class SolidPersistence extends Observable<string> {
     session: Session,
     dataset: SolidDataset | null,
     websocket: any,
-    updateInterval: number
+    updateInterval: number,
   ) {
     super();
 
@@ -256,7 +256,7 @@ export class SolidPersistence extends Observable<string> {
           console.log('[Notification] Resource updated', msg);
           if (this.isUpdating || this.isFetching) {
             console.log(
-              '[Notification] Update or fetch in progress, queueing fetch'
+              '[Notification] Update or fetch in progress, queueing fetch',
             );
             this.requiresFetch = true;
           } else {
@@ -284,7 +284,7 @@ export class SolidPersistence extends Observable<string> {
         console.log(
           '[Solid] Processing ',
           this.updates.length,
-          'queued updates'
+          'queued updates',
         );
         await this.update(this.updates.splice(0));
 
@@ -310,7 +310,7 @@ export class SolidPersistence extends Observable<string> {
     autoLogin = false,
     resourceUrl = `${POD_URL}/yjs/docs`,
     socketUrl = 'wss://inrupt.net/',
-    updateInterval: number = 10000
+    updateInterval = 10000,
   ): Promise<SolidPersistence> {
     // LOGIN
     let session;
@@ -330,20 +330,20 @@ export class SolidPersistence extends Observable<string> {
         session,
         null,
         null,
-        updateInterval
+        updateInterval,
       );
     }
 
     // LOAD DATASET
-    let dataset = await SolidDataset.create(
+    const dataset = await SolidDataset.create(
       name,
       resourceUrl,
-      session.info.webId
+      session.info.webId,
     );
     if (dataset.value.length > 0) Y.applyUpdate(doc, dataset.value, this);
     await dataset.update(Y.encodeStateAsUpdate(doc));
 
-    let websocket = openSolidWebSocket(resourceUrl, socketUrl);
+    const websocket = openSolidWebSocket(resourceUrl, socketUrl);
 
     return new SolidPersistence(
       name,
@@ -351,7 +351,7 @@ export class SolidPersistence extends Observable<string> {
       session,
       dataset,
       websocket,
-      updateInterval
+      updateInterval,
     );
   }
 
@@ -368,10 +368,10 @@ export class SolidPersistence extends Observable<string> {
               });
             },
             this,
-            false
+            false,
           );
         },
-        () => Y.encodeStateAsUpdate(this.doc)
+        () => Y.encodeStateAsUpdate(this.doc),
       );
     } else {
       console.log('Cannot sync update - not logged in');
@@ -396,7 +396,7 @@ export class SolidPersistence extends Observable<string> {
 
   public async setAgentAccess(
     webId: string,
-    access: AccessModes = writeAccess
+    access: AccessModes = writeAccess,
   ) {
     if (this.loggedIn && this.dataset) {
       await setAgentAccess(this.dataset.url, webId, access);
@@ -425,14 +425,14 @@ export class SolidPersistence extends Observable<string> {
       return connection;
     } else {
       console.log(
-        '[SolidProvider] not logged in - creating a random WebRTC connection'
+        '[SolidProvider] not logged in - creating a random WebRTC connection',
       );
       return randomWebRtcConnection();
     }
   }
 
   public getCollaborators(): Collaborator[] {
-    let collaborators: Collaborator[] = [];
+    const collaborators: Collaborator[] = [];
     if (this.loggedIn && this.dataset) {
       collaborators.push({
         webId: this.dataset.creator || 'unknown',
@@ -442,7 +442,7 @@ export class SolidPersistence extends Observable<string> {
         ...this.dataset.contributors.map((webId) => ({
           webId,
           isCreator: false,
-        }))
+        })),
       );
     } else {
       console.log('Cannot get collaborators - not logged in');

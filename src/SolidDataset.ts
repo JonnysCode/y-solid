@@ -28,7 +28,7 @@ const loadDataset = async (datasetUrl: string | Url, withAcl = false) => {
     } else {
       dataset = await getSolidDataset(
         datasetUrl,
-        { fetch: fetch } // fetch function from authenticated session
+        { fetch: fetch }, // fetch function from authenticated session
       );
     }
   } catch (error) {
@@ -42,14 +42,14 @@ const saveDataset = async (dataset: any, datasetUrl: string | Url) => {
   await saveSolidDatasetAt(
     datasetUrl,
     dataset,
-    { fetch: fetch } // fetch function from authenticated session
+    { fetch: fetch }, // fetch function from authenticated session
   );
 };
 
 const newYDocThing = (
   name: string,
   value: Uint8Array,
-  webId: string
+  webId: string,
 ): Thing => {
   const thing = buildThing(createThing({ name: name }))
     .addStringNoLocale(SCHEMA_INRUPT.name, 'SyncedStore Y.Doc')
@@ -59,7 +59,7 @@ const newYDocThing = (
     .addStringNoLocale(DCTERMS.created, new Date().toISOString())
     .addStringNoLocale(
       SCHEMA_INRUPT.value,
-      Buffer.from(value.buffer).toString('base64')
+      Buffer.from(value.buffer).toString('base64'),
     )
     .build();
 
@@ -71,14 +71,14 @@ const dec2hex = (dec: number): string => {
 };
 
 const generateId = (len: number): string => {
-  var arr = new Uint8Array((len || 40) / 2);
+  const arr = new Uint8Array((len || 40) / 2);
   window.crypto.getRandomValues(arr);
   return Array.from(arr, dec2hex).join('');
 };
 
 const addWebRtcConnection = (
   thing: Thing,
-  connection: WebRtcConnection
+  connection: WebRtcConnection,
 ): Thing => {
   thing = addStringNoLocale(thing, 'https://webrtc.org/room', connection.room);
 
@@ -86,7 +86,7 @@ const addWebRtcConnection = (
     thing = addStringNoLocale(
       thing,
       'https://webrtc.org/password',
-      connection.password
+      connection.password,
     );
   }
 
@@ -111,7 +111,7 @@ const updateYDocThing = (thing: Thing, value: Uint8Array): Thing => {
   return setStringNoLocale(
     thing,
     SCHEMA_INRUPT.value,
-    Buffer.from(value.buffer).toString('base64')
+    Buffer.from(value.buffer).toString('base64'),
   );
 };
 
@@ -139,7 +139,7 @@ const addContributorToDataset = async (
   dataset: any,
   datasetUrl: string | Url,
   thing: Thing,
-  webId: string
+  webId: string,
 ): Promise<void> => {
   thing = addContributorToThing(thing, webId);
   dataset = setThing(dataset, thing);
@@ -149,7 +149,7 @@ const addContributorToDataset = async (
 const getYDocThing = (
   dataset: any,
   datasetUrl: string,
-  name: string
+  name: string,
 ): Thing | null => {
   return getThing(dataset, datasetUrl + '#' + name);
 };
@@ -185,7 +185,7 @@ export class SolidDataset {
     url: string,
     resource: any,
     thing: any,
-    value: Uint8Array
+    value: Uint8Array,
   ) {
     this.name = name;
     this.url = url;
@@ -246,7 +246,7 @@ export class SolidDataset {
     applyFetch: (value: Uint8Array) => void,
     applyUpdate: () => void,
     getValue: () => Uint8Array,
-    maxTries = 5
+    maxTries = 5,
   ): Promise<void> => {
     let isSynced = false;
 
@@ -254,7 +254,7 @@ export class SolidDataset {
       console.log(
         '[SolidDataset] Fetch and update attempt,',
         maxTries,
-        'tries left'
+        'tries left',
       );
       await this.fetch();
       applyFetch(this.value);
@@ -268,7 +268,7 @@ export class SolidDataset {
       } catch (e: any) {
         if (e.statusCode === 409) {
           console.log(
-            '[SolidDataset] Conflict saving dataset, fetching required...'
+            '[SolidDataset] Conflict saving dataset, fetching required...',
           );
         } else {
           console.log('[SolidDataset] Error saving the dataset', e);
@@ -283,7 +283,7 @@ export class SolidDataset {
   };
 
   public addWebRtcConnection = async (
-    connection: WebRtcConnection = randomWebRtcConnection()
+    connection: WebRtcConnection = randomWebRtcConnection(),
   ): Promise<WebRtcConnection> => {
     await this.fetch();
 

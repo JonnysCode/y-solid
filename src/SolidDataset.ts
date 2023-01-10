@@ -1,3 +1,4 @@
+import * as logging from 'lib0/logging';
 import { fetch } from '@inrupt/solid-client-authn-browser';
 import {
   buildThing,
@@ -18,6 +19,8 @@ import {
 } from '@inrupt/solid-client';
 import { RDF, SCHEMA_INRUPT, DCTERMS } from '@inrupt/vocab-common-rdf';
 
+const log = logging.createModuleLogger('solid-dataset');
+
 const loadDataset = async (datasetUrl: string | Url, withAcl = false) => {
   let dataset;
   try {
@@ -32,7 +35,7 @@ const loadDataset = async (datasetUrl: string | Url, withAcl = false) => {
       );
     }
   } catch (error) {
-    console.log('Error loading dataset: ', error);
+    log(logging.RED, 'Error loading dataset: ', error);
   }
 
   return dataset;
@@ -251,27 +254,22 @@ export class SolidDataset {
     let isSynced = false;
 
     while (!isSynced && maxTries > 0) {
-      console.log(
-        '[SolidDataset] Fetch and update attempt,',
-        maxTries,
-        'tries left',
-      );
+      log('Fetch and update attempt,', maxTries, 'tries left');
+
       await this.fetch();
       applyFetch(this.value);
-
       applyUpdate();
 
       try {
         await this.update(getValue());
         isSynced = true;
-        console.log('[SolidDataset] Fetch and update success');
+
+        log('Fetch and update success');
       } catch (e: any) {
         if (e.statusCode === 409) {
-          console.log(
-            '[SolidDataset] Conflict saving dataset, fetching required...',
-          );
+          log(logging.RED, 'Conflict saving dataset, fetching required...');
         } else {
-          console.log('[SolidDataset] Error saving the dataset', e);
+          log(logging.RED, '[SolidDataset] Error saving the dataset', e);
         }
         maxTries--;
       }
@@ -286,10 +284,8 @@ export class SolidDataset {
     connection: WebRtcConnection = randomWebRtcConnection(),
   ): Promise<WebRtcConnection> => {
     await this.fetch();
-
     this.thing = addWebRtcConnection(this.thing, connection);
     this.resource = setThing(this.resource, this.thing);
-
     await this.save();
 
     return connection;

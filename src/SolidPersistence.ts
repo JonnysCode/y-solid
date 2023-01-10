@@ -1,202 +1,33 @@
 import { Observable } from 'lib0/observable';
+import * as logging from 'lib0/logging';
 import * as Y from 'yjs';
-
 import {
   handleIncomingRedirect,
-  fetch,
   getDefaultSession,
   Session,
 } from '@inrupt/solid-client-authn-browser';
-import {
-  universalAccess,
-  getAgentAccessAll,
-  AgentAccess,
-} from '@inrupt/solid-client';
+
 import {
   randomWebRtcConnection,
   SolidDataset,
   WebRtcConnection,
 } from './SolidDataset';
+import {
+  AccessModes,
+  readAccess,
+  setAgentAccess,
+  setPublicAccess,
+  writeAccess,
+} from './SolidAccess';
+import { openSolidWebSocket } from './SolidNotifications';
+import { RequireAuth, login } from './SolidAuth';
 
-const POD_URL = 'https://truthless.inrupt.net';
+const log = logging.createModuleLogger('solid-persistence');
 
-export interface AccessModes {
-  read: boolean;
-  append: boolean;
-  write: boolean;
-  controlRead: boolean;
-  controlWrite: boolean;
+export interface Collaborator {
+  webId: string;
+  isCreator: boolean;
 }
-
-const writeAccess: AccessModes = {
-  read: true,
-  append: true,
-  write: true,
-  controlRead: false,
-  controlWrite: false,
-};
-
-const readAccess: AccessModes = {
-  read: true,
-  append: false,
-  write: false,
-  controlRead: false,
-  controlWrite: false,
-};
-
-export const login = async (
-  oidcIssuer = 'https://inrupt.net',
-  redirectUrl = window.location.href,
-  clientName = 'SyncedStore',
-): Promise<Session> => {
-  await handleIncomingRedirect({ restorePreviousSession: true });
-
-  const session = getDefaultSession();
-
-  if (!session.info.isLoggedIn) {
-    await session.login({
-      oidcIssuer: oidcIssuer,
-      redirectUrl: redirectUrl,
-      clientName: clientName,
-    });
-  }
-
-  return session;
-};
-
-const logAccessInfoAll = (agentAccess: AgentAccess | null, dataset: any) => {
-  const resource = dataset.internal_resourceInfo.sourceIri;
-  console.log(`For resource::: ${resource}`);
-
-  if (agentAccess) {
-    for (const [agent, access] of Object.entries(agentAccess)) {
-      console.log(`${agent}'s Access:: ${JSON.stringify(access)}`);
-    }
-  } else {
-    console.log('No access info found');
-  }
-};
-
-const logAccessInfo = (agent: any, agentAccess: any, resource: any) => {
-  console.log(`For resource::: ${resource}`);
-  if (agentAccess === null) {
-    console.log(`Could not load ${agent}'s access details.`);
-  } else {
-    console.log(`${agent}'s Access:: ${JSON.stringify(agentAccess)}`);
-  }
-};
-
-export const getAccessInfoWAC = async (
-  datasetWithAcl: any,
-): Promise<AgentAccess | null> => {
-  const accessByAgent = getAgentAccessAll(datasetWithAcl);
-
-  logAccessInfoAll(accessByAgent, datasetWithAcl);
-
-  return accessByAgent;
-};
-
-export const getPublicAccessInfo = async (
-  datasetUrl = `${POD_URL}/yjs/docs`,
-) => {
-  universalAccess
-    .getPublicAccess(
-      datasetUrl, // Resource
-      { fetch: fetch }, // fetch function from authenticated session
-    )
-    .then((returnedAccess) => {
-      if (returnedAccess === null) {
-        console.log('Could not load access details for this Resource.');
-      } else {
-        console.log(
-          'Returned Public Access:: ',
-          JSON.stringify(returnedAccess),
-        );
-      }
-    });
-};
-
-export const getAgentAccessInfo = async (
-  resourceUrl: string,
-  webid: string,
-): Promise<AccessModes | null> => {
-  const agentAccess = universalAccess.getAgentAccess(
-    resourceUrl, // resource
-    webid, // agent
-    { fetch: fetch }, // fetch function from authenticated session
-  );
-
-  logAccessInfo(webid, agentAccess, resourceUrl);
-
-  return agentAccess;
-};
-
-export const setPublicAccess = async (
-  resourceUrl: string,
-  access: AccessModes,
-): Promise<AccessModes | null> => {
-  const publicAccess = await universalAccess.setPublicAccess(
-    resourceUrl, // Resource
-    access, // Access
-    { fetch: fetch }, // fetch function from authenticated session
-  );
-
-  if (publicAccess === null) {
-    console.log('Could not load access details for this Resource.');
-  } else {
-    console.log('Returned Public Access:: ', JSON.stringify(publicAccess));
-  }
-
-  return access;
-};
-
-export const setAgentAccess = async (
-  resourceUrl: string,
-  webId: string,
-  access: AccessModes,
-) => {
-  universalAccess
-    .setAgentAccess(
-      resourceUrl, // Resource
-      webId, // Agent
-      access, // Access
-      { fetch: fetch }, // fetch function from authenticated session
-    )
-    .then((returnedAccess) => {
-      if (returnedAccess === null) {
-        console.log('Could not load access details for this Resource.');
-      } else {
-        console.log('Returned Agent Access:: ', JSON.stringify(returnedAccess));
-      }
-    });
-};
-
-/**
- * Subscribe to a Solid resource via WebSocket.
- * Currently only supports NSS implementations of pods.
- *
- * @param resourceUrl
- * @param socketUrl
- * @returns A websocket connection to the resource
- */
-const openSolidWebSocket = (
-  resourceUrl: string,
-  socketUrl = 'wss://inrupt.net/',
-): WebSocket | null => {
-  try {
-    const websocket = new WebSocket(socketUrl, ['solid-0.1']);
-
-    websocket.onopen = function () {
-      this.send('sub ' + resourceUrl);
-    };
-
-    return websocket;
-  } catch (e) {
-    console.log('Could not connect to websocket', e);
-  }
-
-  return null;
-};
 
 const syncInterval = (fn: () => void, interval = 5000) => {
   (async function i() {
@@ -204,11 +35,6 @@ const syncInterval = (fn: () => void, interval = 5000) => {
     setTimeout(i, interval);
   })();
 };
-
-export interface Collaborator {
-  webId: string;
-  isCreator: boolean;
-}
 
 export class SolidPersistence extends Observable<string> {
   public name: string;
@@ -253,14 +79,12 @@ export class SolidPersistence extends Observable<string> {
     if (this.websocket) {
       this.websocket.onmessage = async (msg: any) => {
         if (msg.data && msg.data.slice(0, 3) === 'pub') {
-          console.log('[Notification] Resource updated', msg);
+          log('[Notification] Resource updated', msg);
           if (this.isUpdating || this.isFetching) {
-            console.log(
-              '[Notification] Update or fetch in progress, queueing fetch',
-            );
+            log('[Notification] Update or fetch in progress, queueing fetch');
             this.requiresFetch = true;
           } else {
-            console.log('[Notification] Fetching pod');
+            log('[Notification] Fetching pod');
             await this.fetch();
           }
 
@@ -281,23 +105,19 @@ export class SolidPersistence extends Observable<string> {
     syncInterval(async () => {
       if (this.updates.length > 0) {
         this.isUpdating = true;
-        console.log(
-          '[Solid] Processing ',
-          this.updates.length,
-          'queued updates',
-        );
+        log('[Solid] Processing ', this.updates.length, 'queued updates');
         await this.update(this.updates.splice(0));
 
         // if there are any notifications during the update, fetch the latest pod state
         if (this.requiresFetch) {
-          console.log('[Solid] Additional fetching required');
+          log('[Solid] Additional fetching required');
           await this.fetch();
         }
 
         this.isUpdating = false;
-        console.log('[Solid] Finished processing updates');
+        log('[Solid] Finished processing updates');
       } else {
-        console.log('[Solid] No updates to process');
+        log('[Solid] No updates to process');
       }
     }, updateInterval);
 
@@ -308,7 +128,7 @@ export class SolidPersistence extends Observable<string> {
     name: string,
     doc: Y.Doc,
     autoLogin = false,
-    resourceUrl = `${POD_URL}/yjs/docs`,
+    resourceUrl: string | undefined,
     socketUrl = 'wss://inrupt.net/',
     updateInterval = 10000,
   ): Promise<SolidPersistence> {
@@ -323,7 +143,7 @@ export class SolidPersistence extends Observable<string> {
 
     // NOT LOGGED IN
     if (!session.info.isLoggedIn || !session.info.webId) {
-      console.log('Not logged in');
+      log(logging.ORANGE, 'Not logged in');
       return new SolidPersistence(
         name,
         doc,
@@ -355,62 +175,36 @@ export class SolidPersistence extends Observable<string> {
     );
   }
 
+  @RequireAuth
   public async update(updates: Uint8Array[]) {
-    if (this.loggedIn && this.dataset) {
-      await this.dataset.fetchAndUpdate(
-        (value: Uint8Array) => Y.applyUpdate(this.doc, value, this),
-        () => {
-          Y.transact(
-            this.doc,
-            () => {
-              updates.forEach((update) => {
-                Y.applyUpdate(this.doc, update);
-              });
-            },
-            this,
-            false,
-          );
-        },
-        () => Y.encodeStateAsUpdate(this.doc),
-      );
-    } else {
-      console.log('Cannot sync update - not logged in');
-    }
+    await this.dataset.fetchAndUpdate(
+      (value: Uint8Array) => Y.applyUpdate(this.doc, value, this),
+      () => {
+        Y.transact(
+          this.doc,
+          () => {
+            updates.forEach((update) => {
+              Y.applyUpdate(this.doc, update);
+            });
+          },
+          this,
+          false,
+        );
+      },
+      () => Y.encodeStateAsUpdate(this.doc),
+    );
   }
 
+  @RequireAuth
   public async fetch() {
     this.isFetching = true;
 
-    if (this.loggedIn && this.dataset) {
-      await this.dataset.fetch();
-      Y.applyUpdate(this.doc, this.dataset.value, this);
+    await this.dataset.fetch();
+    Y.applyUpdate(this.doc, this.dataset.value, this);
 
-      console.log('Fetched from pod');
-      this.requiresFetch = false;
-    } else {
-      console.log('Cannot fetch - not logged in');
-    }
-
+    log('Fetched from pod');
+    this.requiresFetch = false;
     this.isFetching = false;
-  }
-
-  public async setAgentAccess(
-    webId: string,
-    access: AccessModes = writeAccess,
-  ) {
-    if (this.loggedIn && this.dataset) {
-      await setAgentAccess(this.dataset.url, webId, access);
-    } else {
-      console.log('Cannot set access - not logged in');
-    }
-  }
-
-  public async setPublicAccess(access: AccessModes = readAccess) {
-    if (this.loggedIn && this.dataset) {
-      await setPublicAccess(this.dataset.url, access);
-    } else {
-      console.log('Cannot set access - not logged in');
-    }
   }
 
   public getWebRtcConnection(): WebRtcConnection {
@@ -424,46 +218,51 @@ export class SolidPersistence extends Observable<string> {
 
       return connection;
     } else {
-      console.log(
-        '[SolidProvider] not logged in - creating a random WebRTC connection',
+      log(
+        logging.ORANGE,
+        'Not authenticated - creating a random WebRTC connection',
       );
       return randomWebRtcConnection();
     }
   }
 
+  @RequireAuth
   public getCollaborators(): Collaborator[] {
     const collaborators: Collaborator[] = [];
-    if (this.loggedIn && this.dataset) {
-      collaborators.push({
-        webId: this.dataset.creator || 'unknown',
-        isCreator: true,
-      });
-      collaborators.push(
-        ...this.dataset.contributors.map((webId) => ({
-          webId,
-          isCreator: false,
-        })),
-      );
-    } else {
-      console.log('Cannot get collaborators - not logged in');
-    }
+    collaborators.push({
+      webId: this.dataset.creator || 'unknown',
+      isCreator: true,
+    });
+    collaborators.push(
+      ...this.dataset.contributors.map((webId) => ({
+        webId,
+        isCreator: false,
+      })),
+    );
 
     return collaborators;
   }
 
-  public async addWriteAccess(webId: string) {
-    if (this.loggedIn && this.dataset) {
-      await setAgentAccess(this.dataset.url, webId, writeAccess);
-    } else {
-      console.log('Cannot add collaborator - not logged in');
-    }
+  @RequireAuth
+  public async setAgentAccess(
+    webId: string,
+    access: AccessModes = writeAccess,
+  ) {
+    await setAgentAccess(this.dataset.url, webId, access);
   }
 
+  @RequireAuth
+  public async setPublicAccess(access: AccessModes = readAccess) {
+    await setPublicAccess(this.dataset.url, access);
+  }
+
+  @RequireAuth
+  public async addWriteAccess(webId: string) {
+    await setAgentAccess(this.dataset.url, webId, writeAccess);
+  }
+
+  @RequireAuth
   public async addReadAccess(webId: string) {
-    if (this.loggedIn && this.dataset) {
-      await setAgentAccess(this.dataset.url, webId, readAccess);
-    } else {
-      console.log('Cannot add collaborator - not logged in');
-    }
+    await setAgentAccess(this.dataset.url, webId, readAccess);
   }
 }

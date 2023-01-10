@@ -36,13 +36,47 @@ const syncInterval = (fn: () => void, interval = 5000) => {
   })();
 };
 
+/**
+ * Class for handling communication between the yjs doc and the corresponding
+ * dataset on a Solid POD.
+ *
+ * @extends {Observable<string>}
+ */
 export class SolidPersistence extends Observable<string> {
+  /**
+   * The name of the dataset.
+   * @type {string}
+   */
   public name: string;
+  /**
+   * The Y.Doc instance.
+   * @type {Y.Doc}
+   */
   public doc: Y.Doc;
+  /**
+   * Whether the user is logged in.
+   * @type {boolean}
+   */
   public loggedIn: boolean;
+  /**
+   * The SolidAuthClient session.
+   * @type {Session}
+   */
   public session: Session;
+  /**
+   * The SolidDataset instance.
+   * @type {SolidDataset|null}
+   */
   public dataset: SolidDataset | null;
+  /**
+   * The WebSocket connection.
+   * @type {any}
+   */
   public websocket: any;
+  /**
+   * The update interval to the Solid Pod.
+   * @type {number}
+   */
   public updateInterval: number;
 
   private isUpdating: boolean;
@@ -175,6 +209,12 @@ export class SolidPersistence extends Observable<string> {
     );
   }
 
+  /**
+   * Applies updates to the local Yjs document and syncs them to the POD.
+   * @param {any[]} updates - Array of updates to apply
+   * @returns {Promise<void>}
+   * @throws {Error} If the user is not logged in
+   */
   @RequireAuth
   public async update(updates: Uint8Array[]) {
     await this.dataset.fetchAndUpdate(
@@ -195,6 +235,11 @@ export class SolidPersistence extends Observable<string> {
     );
   }
 
+  /**
+   * Fetches the latest state of the dataset from the POD.
+   * @returns {Promise<void>}
+   * @throws {Error} If the user is not logged in
+   */
   @RequireAuth
   public async fetch() {
     this.isFetching = true;
@@ -244,7 +289,7 @@ export class SolidPersistence extends Observable<string> {
   }
 
   @RequireAuth
-  public async setAgentAccess(
+  public async addAgentAccess(
     webId: string,
     access: AccessModes = writeAccess,
   ) {
@@ -252,7 +297,7 @@ export class SolidPersistence extends Observable<string> {
   }
 
   @RequireAuth
-  public async setPublicAccess(access: AccessModes = readAccess) {
+  public async addPublicAccess(access: AccessModes = readAccess) {
     await setPublicAccess(this.dataset.url, access);
   }
 

@@ -24,7 +24,9 @@
     "Yjs",
     "Solid",
     "CRDT",
-    "Private Data Pod"
+    "Private Data Pod",
+    "Offline-First",
+    "Local-Frist Applications"
   ],
   "author": "Jonathan Gruss <jonathangruss@gmail.com>",
   "license": "ISC",

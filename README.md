@@ -2,6 +2,10 @@
 
 > An experimental Solid Protocol provider for Yjs
 
+Use y-solid in combination with Yjs to add backup storage in a decentralized private data pod, access control, and discoverability and availability to your collaborative (local-first) application.
+
+Check out how to use it in this collaborative task board application built with React: [Link](https://github.com/JonnysCode/y-solid-sample-app)
+
 ## Installation
 
 ```sh

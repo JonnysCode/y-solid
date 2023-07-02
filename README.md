@@ -1,6 +1,6 @@
 # y-solid
 
-> An experimental Solid Protocol provider for Yjs
+> An experimental Solid Protocol provider for [Yjs](https://github.com/yjs/yjs)
 
 Use y-solid in combination with Yjs to add backup storage in a decentralized private data pod, access control, and discoverability and availability to your collaborative (local-first) application.
 
